@@ -12,7 +12,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
-from run_ctrg_experiment import download_month
+from run_ctrg_experiment import require_local_month
 
 
 USECOLS = [
@@ -200,9 +200,7 @@ def main(argv: list[str]) -> None:
 
     frames = []
     for m in range(1, 13):
-        path = raw_dir / f"bts_otp_{args.year}_{m:02d}.zip"
-        if not path.exists():
-            path = download_month(args.year, m, raw_dir)
+        path = require_local_month(args.year, m, raw_dir)
         frames.append(read_zip(path))
         print(f"Loaded {path.name}", flush=True)
     df = pd.concat(frames, ignore_index=True)

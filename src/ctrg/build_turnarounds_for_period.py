@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from run_ctrg_experiment import download_month, read_bts_zip, reconstruct_turnarounds
+from run_ctrg_experiment import read_bts_zip, reconstruct_turnarounds, require_local_month
 
 
 def log(message: str) -> None:
@@ -35,7 +35,7 @@ def main(argv: list[str]) -> None:
     frames = []
     for year in args.years:
         for month in args.months:
-            zip_path = download_month(year, month, raw_dir)
+            zip_path = require_local_month(year, month, raw_dir)
             frame = read_bts_zip(zip_path, airports)
             frames.append(frame)
             log(f"Loaded {year}-{month:02d}: {len(frame):,} filtered rows")

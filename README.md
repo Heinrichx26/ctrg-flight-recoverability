@@ -2,7 +2,7 @@
 
 This repository contains the reproducible code for Counterfactual Tail-Swap Recoverability Graphs (CTRG), a public-record method for measuring recoverability in aircraft delay chains.
 
-The code uses U.S. Bureau of Transportation Statistics (BTS) Airline On-Time Performance records. The repository does not redistribute source flight records or derived experiment outputs. Users can obtain the public records from the BTS TranStats portal:
+The code uses U.S. Bureau of Transportation Statistics (BTS) Airline On-Time Performance records. The repository does not redistribute source flight records or derived experiment outputs. Users should obtain the public records from the BTS TranStats portal before running the scripts:
 
 - BTS Airline On-Time Performance records: https://transtats.bts.gov/ONTIME/
 - BTS pre-zipped monthly files used by the scripts: https://transtats.bts.gov/PREZIP/
@@ -23,9 +23,39 @@ Python 3.11 or newer is recommended.
 pip install -r requirements.txt
 ```
 
+## Data Preparation Prerequisite
+
+Prepare the BTS monthly zip files locally before running any workflow. The scripts read local files and do not download public records automatically.
+
+Place each monthly zip file in:
+
+```text
+data/ctrg/raw_bts/
+```
+
+Use this repository-local naming pattern:
+
+```text
+data/ctrg/raw_bts/bts_otp_YYYY_MM.zip
+```
+
+For example, the January 2024 BTS pre-zipped file should be saved as:
+
+```text
+data/ctrg/raw_bts/bts_otp_2024_01.zip
+```
+
+The corresponding BTS source file is named:
+
+```text
+On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2024_1.zip
+```
+
+If a required local file is missing, the scripts stop and report the expected path and the BTS public source portal.
+
 ## Quick Smoke Test
 
-The smoke test downloads one public month and evaluates a small airport set.
+After preparing the January 2024 BTS zip locally, run a small diagnostic workflow on five airports:
 
 ```bash
 python src/ctrg/run_ctrg_experiment.py \
@@ -39,7 +69,7 @@ Outputs are written to `results/ctrg/smoke`.
 
 ## Full Reproduction Workflow
 
-The full workflow uses complete public years. It may take substantial time and disk space because the BTS monthly files and reconstructed turnaround tables are large.
+The full workflow uses complete public years. It may take substantial time and disk space because the BTS monthly files and reconstructed turnaround tables are large. Prepare all required monthly zip files in `data/ctrg/raw_bts` before running the commands.
 
 1. Classify the 2025 airport sampling frame.
 

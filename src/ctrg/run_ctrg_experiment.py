@@ -4,7 +4,6 @@ import argparse
 import json
 import math
 import sys
-import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -20,10 +19,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 
 
-BTS_URL = (
-    "https://transtats.bts.gov/PREZIP/"
-    "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_{year}_{month}.zip"
-)
+BTS_PREZIP_URL = "https://transtats.bts.gov/PREZIP/"
 
 USECOLS = [
     "Year",
@@ -150,23 +146,24 @@ def ensure_dirs(*paths: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
 
-def download_month(year: int, month: int, raw_dir: Path) -> Path:
+def require_local_month(year: int, month: int, raw_dir: Path) -> Path:
     ensure_dirs(raw_dir)
     out = raw_dir / f"bts_otp_{year}_{month:02d}.zip"
     if out.exists() and out.stat().st_size > 1_000_000:
         return out
-    url = BTS_URL.format(year=year, month=month)
-    log(f"Downloading BTS {year}-{month:02d} ...")
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0 CTRG public data smoke test"},
+    source_name = (
+        "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"
+        f"{year}_{month}.zip"
     )
-    with urllib.request.urlopen(request, timeout=180) as response:
-        data = response.read()
-    out.write_bytes(data)
-    if out.stat().st_size < 1_000_000:
-        raise RuntimeError(f"Downloaded file is unexpectedly small: {out}")
-    return out
+    relative_hint = Path("data") / "ctrg" / "raw_bts" / out.name
+    raise FileNotFoundError(
+        "Missing local BTS monthly file.\n"
+        f"Expected repository-relative path: {relative_hint}\n"
+        f"Expected local name: {out.name}\n"
+        f"Source file name at BTS: {source_name}\n"
+        f"Public source portal: {BTS_PREZIP_URL}\n"
+        "Place the public monthly zip in data/ctrg/raw_bts before running this script."
+    )
 
 
 def read_bts_zip(zip_path: Path, airports: set[str]) -> pd.DataFrame:
@@ -868,7 +865,7 @@ def run(config: ExperimentConfig, root: Path) -> None:
     frames = []
     for year in config.years:
         for month in config.months:
-            zip_path = download_month(year, month, raw_dir)
+            zip_path = require_local_month(year, month, raw_dir)
             frames.append(read_bts_zip(zip_path, airports))
     flights = pd.concat(frames, ignore_index=True)
     log(f"Loaded flight rows after airport/tail filter: {len(flights):,}")
