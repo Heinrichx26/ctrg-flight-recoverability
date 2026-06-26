@@ -1,6 +1,6 @@
 # CTRG Flight Recoverability
 
-This repository contains the reproducible code for Counterfactual Tail-Swap Recoverability Graphs (CTRG), a public-record method for measuring recoverability in aircraft delay chains.
+This repository contains the reproducible code for Compatible Tail-Recovery Graphs (CTRG), a public-record method for measuring recoverability in aircraft delay chains.
 
 The code uses U.S. Bureau of Transportation Statistics (BTS) Airline On-Time Performance records. The repository does not redistribute source flight records or derived experiment outputs. Users should obtain the public records from the BTS TranStats portal before running the scripts:
 
@@ -53,19 +53,19 @@ On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2024_1.zip
 
 If a required local file is missing, the scripts stop and report the expected path and the BTS public source portal.
 
-## Quick Smoke Test
+## Quick Local Check
 
 After preparing the January 2024 BTS zip locally, run a small diagnostic workflow on five airports:
 
 ```bash
 python src/ctrg/run_ctrg_experiment.py \
-  --mode smoke \
+  --mode check \
   --years 2024 \
   --months 1 \
   --airports ATL DFW DEN ORD LAX
 ```
 
-Outputs are written to `results/ctrg/smoke`.
+Outputs are written to `results/ctrg/check`.
 
 ## Full Reproduction Workflow
 
@@ -131,7 +131,7 @@ Display outputs are written to `results/display`.
 
 CTRG evaluates stressed turnaround episodes using compatible donor continuations observed in the same public data source. A donor continuation must match the observable airport-carrier context, fall within a bounded scheduled-departure time window, come from a different aircraft tail, satisfy minimum available turn time, avoid cancellation and diversion, and remain close in distance group when that descriptor is available.
 
-The code reports observed-path recoverability, feasible-rewire recoverability, recoverability gap, donor count, support status, and top-slice failed-exit enrichment. Comparison-method diagnostics use the same public-data constraints.
+The code reports observed-path recoverability, best-continuation recoverability, recoverability gap, donor count, support status, and top-slice failed-exit enrichment. Comparison-method diagnostics use the same public-data constraints.
 
 ## License
 

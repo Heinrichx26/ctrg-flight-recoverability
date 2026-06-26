@@ -277,7 +277,7 @@ def context_tables(test_graph: pd.DataFrame, horizon: int, root: Path) -> tuple[
                 "supported_share_stressed": float(len(supported) / len(stressed)),
                 "failure_rate_supported_stressed": float(supported[f"fail_h{horizon}"].mean()) if len(supported) else np.nan,
                 "mean_gap_max_supported": float(supported["ctrg_gap_max"].mean()) if len(supported) else np.nan,
-                "severe_high_rewire_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
+                "severe_high_continuation_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
                 "structural_brittle_share": float(supported["structural_brittle"].mean()) if len(supported) else np.nan,
                 "median_donor_count_supported": float(supported["donor_count"].median()) if len(supported) else np.nan,
             }
@@ -352,11 +352,11 @@ def summarize(
             "median_donor_count_supported": float(supported["donor_count"].median()) if len(supported) else np.nan,
             "median_donor_time_gap_minutes": float(supported["donor_median_time_gap"].median()) if len(supported) else np.nan,
         },
-        "counterfactual_patterns": {
+        "continuation_patterns": {
             "supported_stressed_failure_rate": float(supported[f"fail_h{horizon}"].mean()) if len(supported) else np.nan,
             "supported_stressed_recovery_rate": float(supported[f"recover_h{horizon}"].mean()) if len(supported) else np.nan,
             "mean_gap_max_supported": float(supported["ctrg_gap_max"].mean()) if len(supported) else np.nan,
-            "severe_high_rewire_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
+            "severe_high_continuation_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
             "structural_brittle_share": float(supported["structural_brittle"].mean()) if len(supported) else np.nan,
             "severe_mean_donor_pred_max": float(severe["donor_pred_max"].mean()) if len(severe) else np.nan,
             "moderate_mean_donor_pred_max": float(moderate["donor_pred_max"].mean()) if len(moderate) else np.nan,
@@ -489,7 +489,7 @@ def run(args: argparse.Namespace) -> None:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", default="smoke")
+    parser.add_argument("--mode", default="check")
     parser.add_argument("--turnarounds", required=True)
     parser.add_argument("--years", nargs="+", type=int, default=[2025])
     parser.add_argument("--months", nargs="+", type=int, default=list(range(1, 13)))

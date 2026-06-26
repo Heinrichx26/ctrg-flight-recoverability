@@ -52,12 +52,12 @@ BASE_CATEGORICAL = ["airport", "carrier", "dep_time_blk", "arr_time_blk"]
 
 METHOD_NOTES = {
     "CTRG max-gap": {
-        "family": "Counterfactual feasible-continuation graph",
-        "problem_dimension": "Feasible rewire recoverability certificate",
+        "family": "Support-certified feasible-continuation graph",
+        "problem_dimension": "Best-continuation recoverability certificate",
     },
     "CTRG risk-gap certificate": {
-        "family": "Counterfactual feasible-continuation graph",
-        "problem_dimension": "Joint observed-path risk and feasible rewire recoverability",
+        "family": "Support-certified feasible-continuation graph",
+        "problem_dimension": "Joint observed-path risk and best-continuation recoverability",
     },
     "Observed-path ensemble": {
         "family": "Supervised sequence-outcome recovery prediction",
@@ -71,8 +71,8 @@ METHOD_NOTES = {
         "family": "Finite-horizon hazard/recovery dynamics",
         "problem_dimension": "Recovery timing across short and longer horizons",
     },
-    "Analog counterfactual matching": {
-        "family": "Nearest-neighbor counterfactual support matching",
+    "Analog continuation matching": {
+        "family": "Nearest-neighbor continuation-support matching",
         "problem_dimension": "Recoverability from similar historical contexts",
     },
     "Network resilience learner": {
@@ -95,7 +95,7 @@ RECOMMENDED_ROLES = {
     "Observed-path ensemble": "Observed-path supervised recovery comparator",
     "ST propagation learner": "Propagation-learning comparator",
     "Multi-horizon hazard ensemble": "Dynamic recovery/hazard comparator",
-    "Analog counterfactual matching": "Analog matching comparator",
+    "Analog continuation matching": "Analog matching comparator",
     "Network resilience learner": "Airline-network resilience comparator",
     "Capacity-greedy recovery proxy": "Recovery optimization proxy",
     "Uncertainty-aware ensemble": "Uncertainty-aware learning comparator",
@@ -252,7 +252,7 @@ def add_network_features(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.Da
     return train, test, numeric
 
 
-def analog_counterfactual_scores(train: pd.DataFrame, test: pd.DataFrame, k: int = 20) -> np.ndarray:
+def analog_continuation_scores(train: pd.DataFrame, test: pd.DataFrame, k: int = 20) -> np.ndarray:
     scores = np.full(len(test), np.nan, dtype=float)
     features = [
         "hour",
@@ -362,7 +362,7 @@ def evaluate_scores(df: pd.DataFrame, methods: dict[str, np.ndarray], horizon: i
                     "donor_actual_recover_mean": float(picked_df["donor_actual_recover_mean"].mean())
                     if "donor_actual_recover_mean" in picked_df
                     else np.nan,
-                    "severe_high_rewire_share": float(picked_df["recoverable_despite_severe"].mean())
+                    "severe_high_continuation_share": float(picked_df["recoverable_despite_severe"].mean())
                     if "recoverable_despite_severe" in picked_df
                     else np.nan,
                     "structural_brittle_share": float(picked_df["structural_brittle"].mean())
@@ -388,7 +388,7 @@ def main(argv: list[str]) -> None:
 
     turn = load_turnarounds(Path(args.turnarounds), args.horizon)
     log(f"Loaded turnarounds: {len(turn):,}")
-    train, test = split_train_eval(turn, "smoke", args.horizon)
+    train, test = split_train_eval(turn, "check", args.horizon)
     log(f"Endpoint split: train={len(train):,}, test={len(test):,}")
 
     linear_model = train_model(train, args.horizon, args.random_state)
@@ -434,7 +434,7 @@ def main(argv: list[str]) -> None:
     )
     net_score_all = predict_hgb(net_model, test_net)
 
-    analog_score_all = analog_counterfactual_scores(train, test)
+    analog_score_all = analog_continuation_scores(train, test)
     uncertainty_score_all = uncertainty_scores(train, test, args.random_state + 303)
 
     score_frame = test_graph[
@@ -456,7 +456,7 @@ def main(argv: list[str]) -> None:
     score_frame["Observed-path ensemble"] = 1.0 - test_graph["pred_recover"].to_numpy(dtype=float)
     score_frame["ST propagation learner"] = st_score_all
     score_frame["Multi-horizon hazard ensemble"] = mh_score_all
-    score_frame["Analog counterfactual matching"] = analog_score_all
+    score_frame["Analog continuation matching"] = analog_score_all
     score_frame["Network resilience learner"] = net_score_all
     score_frame["Capacity-greedy recovery proxy"] = capacity_greedy_score(test_graph)
     score_frame["Uncertainty-aware ensemble"] = uncertainty_score_all
@@ -477,7 +477,7 @@ def main(argv: list[str]) -> None:
                 "failure_lift_vs_supported",
                 "mean_ctrg_gap_max",
                 "mean_donor_pred_max",
-                "severe_high_rewire_share",
+                "severe_high_continuation_share",
                 "structural_brittle_share",
             ]
         ],
