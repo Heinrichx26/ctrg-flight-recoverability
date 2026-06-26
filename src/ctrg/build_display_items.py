@@ -15,6 +15,10 @@ TABLE_DIR = ROOT / "results" / "display" / "tables"
 FIG_DIR = ROOT / "results" / "display" / "figures"
 
 
+def normalize_result_columns(df: pd.DataFrame) -> pd.DataFrame:
+    return df
+
+
 def tex_int(value: float | int) -> str:
     return f"{int(round(float(value))):,}".replace(",", "{,}")
 
@@ -41,16 +45,16 @@ def load_data() -> dict[str, pd.DataFrame]:
         "sampling": pd.read_csv(SUMMARY / "airport_sampling_frame_2025.csv"),
         "profiles": pd.read_csv(SUMMARY / "airport_context_profiles_2025.csv"),
         "yearly": pd.read_csv(SUMMARY / "yearly_robustness_summary.csv"),
-        "context": pd.read_csv(FULL / "airport_context_result_table.csv"),
+        "context": normalize_result_columns(pd.read_csv(FULL / "airport_context_result_table.csv")),
         "context_top": pd.read_csv(FULL / "airport_context_top_slice_table.csv"),
         "top": pd.read_csv(FULL / "top_slice_table.csv"),
         "boot": pd.read_csv(FULL / "top_slice_bootstrap.csv"),
-        "delay": pd.read_csv(FULL / "delay_band_table.csv"),
-        "cause": pd.read_csv(FULL / "cause_table.csv"),
-        "monthly": pd.read_csv(FULL / "monthly_table.csv"),
-        "yearly_context": pd.read_csv(SUMMARY / "yearly_context_robustness_summary.csv"),
-        "diagnostic_slices": pd.read_csv(DIAGNOSTIC / "comparison_method_diagnostic_top_slices.csv"),
-        "diagnostic": pd.read_csv(DIAGNOSTIC / "comparison_method_table.csv"),
+        "delay": normalize_result_columns(pd.read_csv(FULL / "delay_band_table.csv")),
+        "cause": normalize_result_columns(pd.read_csv(FULL / "cause_table.csv")),
+        "monthly": normalize_result_columns(pd.read_csv(FULL / "monthly_table.csv")),
+        "yearly_context": normalize_result_columns(pd.read_csv(SUMMARY / "yearly_context_robustness_summary.csv")),
+        "diagnostic_slices": normalize_result_columns(pd.read_csv(DIAGNOSTIC / "comparison_method_diagnostic_top_slices.csv")),
+        "diagnostic": normalize_result_columns(pd.read_csv(DIAGNOSTIC / "comparison_method_table.csv")),
     }
 
 
@@ -145,7 +149,7 @@ Analysis & Turnarounds & Test episodes & Stressed / supported & Support (\%) & D
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{AUC denotes area under the receiver operating characteristic curve, and AP denotes average precision for the observed-path recovery scorer. Higher support means broader certified donor coverage; larger mean gap means greater feasible-rewire recoverability space among supported stressed episodes.}}
+    \tablenote{{AUC denotes area under the receiver operating characteristic curve, and AP denotes average precision for the observed-path recovery scorer. Higher support means broader certified donor coverage; larger mean gap means greater best-continuation recoverability space among supported stressed episodes.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "tab_experimental_scale.tex", text)
@@ -173,12 +177,12 @@ def table_top_slice_comparison(data: dict[str, pd.DataFrame]) -> None:
                 "ci_high": float(br.failure_rate_ci_high),
                 "lift": float(tr.failure_lift_vs_supported),
                 "gap": float(tr.mean_gap_max),
-                "rewire": float(tr.mean_donor_pred_max),
+                "continuation": float(tr.mean_donor_pred_max),
             }
         )
     max_failure = max(r["failure"] for r in rows_raw)
     max_gap = max(r["gap"] for r in rows_raw)
-    max_rewire = max(r["rewire"] for r in rows_raw)
+    max_continuation = max(r["continuation"] for r in rows_raw)
     rows = []
     for r in rows_raw:
         failure_text = f"{tex_pct(r['failure'])} [{tex_pct(r['ci_low'])}, {tex_pct(r['ci_high'])}]"
@@ -187,10 +191,10 @@ def table_top_slice_comparison(data: dict[str, pd.DataFrame]) -> None:
         gap_text = tex_num(r["gap"], 3)
         if r["gap"] == max_gap:
             gap_text = bold(gap_text)
-        rewire_text = tex_num(r["rewire"], 3)
-        if r["rewire"] == max_rewire:
-            rewire_text = bold(rewire_text)
-        rows.append([r["label"], failure_text, tex_num(r["lift"], 2), gap_text, rewire_text])
+        continuation_text = tex_num(r["continuation"], 3)
+        if r["continuation"] == max_continuation:
+            continuation_text = bold(continuation_text)
+        rows.append([r["label"], failure_text, tex_num(r["lift"], 2), gap_text, continuation_text])
     body = "\n".join(" & ".join(r) + r" \\" for r in rows)
     text = rf"""\begin{{table}}[!tbp]
 \centering
@@ -201,12 +205,12 @@ def table_top_slice_comparison(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:top-slice-comparison}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}L{{0.26\linewidth}}r r r r@{{}}}}
 \toprule
-Ranking rule & Failed-exit rate (\%, 95\% CI) & Lift & Mean gap & Mean feasible-rewire score \\
+Ranking rule & Failed-exit rate (\%, 95\% CI) & Lift & Mean gap & Mean best-cont. score \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{Higher failed-exit rate means stronger enrichment of realized brittle outcomes in the selected slice. Lift is the failed-exit rate divided by the reference failed-exit rate among all supported stressed episodes. Higher mean gap and feasible-rewire score mean stronger CTRG recoverability evidence. Bold marks the largest value in each outcome column. CI denotes confidence interval from airport-block bootstrap resampling.}}
+    \tablenote{{Higher failed-exit rate means stronger enrichment of realized brittle outcomes in the selected slice. Lift is the failed-exit rate divided by the reference failed-exit rate among all supported stressed episodes. Higher mean gap and best-continuation score mean stronger CTRG recoverability evidence. Bold marks the largest value in each outcome column. CI denotes confidence interval from airport-block bootstrap resampling.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "tab_top_slice_comparison.tex", text)
@@ -287,7 +291,7 @@ def table_method_diagnostic(data: dict[str, pd.DataFrame]) -> None:
     diag = diag.sort_values("order")
     max_failure = diag.failure_rate.max()
     max_gap = diag.mean_ctrg_gap_max.max()
-    max_rewire = diag.severe_high_rewire_share.max()
+    max_continuation = diag.severe_high_continuation_share.max()
     rows = []
     labels = {
         "CTRG max-gap": "CTRG max-gap",
@@ -296,20 +300,25 @@ def table_method_diagnostic(data: dict[str, pd.DataFrame]) -> None:
     for _, row in diag.iterrows():
         failure = tex_pct(row.failure_rate)
         gap = tex_num(row.mean_ctrg_gap_max, 3)
-        rewire = tex_pct(row.severe_high_rewire_share)
+        continuation = tex_pct(row.severe_high_continuation_share)
+        problem_dimension = str(row.problem_dimension)
+        if row.method == "CTRG max-gap":
+            problem_dimension = "Best-continuation recoverability certificate"
+        elif row.method == "CTRG risk-gap certificate":
+            problem_dimension = "Joint observed-path risk and best-continuation recoverability"
         if row.failure_rate == max_failure:
             failure = bold(failure)
         if row.mean_ctrg_gap_max == max_gap:
             gap = bold(gap)
-        if row.severe_high_rewire_share == max_rewire:
-            rewire = bold(rewire)
+        if row.severe_high_continuation_share == max_continuation:
+            continuation = bold(continuation)
         rows.append(
             [
                 labels.get(row.method, row.method),
-                row.problem_dimension,
+                problem_dimension,
                 failure,
                 gap,
-                rewire,
+                continuation,
             ]
         )
     body = "\n".join(" & ".join(r) + r" \\" for r in rows)
@@ -322,12 +331,12 @@ def table_method_diagnostic(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:method-diagnostic}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}L{{0.24\linewidth}}Y r r r@{{}}}}
 \toprule
-Method family & Problem dimension & Failed-exit rate (\%) & Mean CTRG gap & Severe high-rewire (\%) \\
+Method family & Problem dimension & Failed-exit rate (\%) & Mean CTRG gap & Severe high-cont. (\%) \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{The diagnostic uses the same held-out supported stressed episodes in the focused method-family test. Higher failed-exit rate indicates stronger pure risk enrichment; higher mean CTRG gap and severe high-rewire share indicate stronger recoverability-gap evidence. Bold marks the largest value in each outcome column.}}
+    \tablenote{{The diagnostic uses the same held-out supported stressed episodes in the focused method-family test. Higher failed-exit rate indicates stronger pure risk enrichment; higher mean CTRG gap and severe high-continuation share indicate stronger recoverability-gap evidence. Bold marks the largest value in each outcome column.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "tab_method_diagnostic.tex", text)
@@ -434,7 +443,7 @@ def supplement_table_monthly_stability(data: dict[str, pd.DataFrame]) -> None:
                 support,
                 failure,
                 gap,
-                tex_pct(row.severe_high_rewire_share),
+                tex_pct(row.severe_high_continuation_share),
                 tex_pct(row.structural_brittle_share),
             ]
         )
@@ -448,12 +457,12 @@ def supplement_table_monthly_stability(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:supp-monthly-stability}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}r r r r r r r r r@{{}}}}
 \toprule
-Month & Test episodes & Stressed & Supported & Support (\%) & Failed exit (\%) & Mean gap & Severe high-rewire (\%) & Structural-brittle (\%) \\
+Month & Test episodes & Stressed & Supported & Support (\%) & Failed exit (\%) & Mean gap & Severe high-cont. (\%) & Structural-brittle (\%) \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{The held-out period contains months 7--12. Support is the share of stressed episodes with at least one retained donor continuation. Severe high-rewire denotes episodes with outbound departure delay of at least 60 minutes and feasible-rewire recoverability of at least 0.70. Structural-brittle denotes supported stressed episodes whose best donor score is no higher than the observed-path score. Bold marks the highest support, failed-exit rate, and mean gap across months.}}
+    \tablenote{{The held-out period contains months 7--12. Support is the share of stressed episodes with at least one retained donor continuation. Severe high-continuation denotes episodes with outbound departure delay of at least 60 minutes and best-continuation recoverability of at least 0.70. Structural-brittle denotes supported stressed episodes whose best donor score is no higher than the observed-path score. Bold marks the highest support, failed-exit rate, and mean gap across months.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "supp_tab_monthly_stability.tex", text)
@@ -483,7 +492,7 @@ def supplement_table_delay_bands(data: dict[str, pd.DataFrame]) -> None:
                 tex_num(row.mean_pred_recover, 3),
                 tex_num(row.mean_donor_pred_max, 3),
                 gap,
-                tex_pct(row.high_rewire_share),
+                tex_pct(row.high_continuation_share),
                 structural,
             ]
         )
@@ -497,12 +506,12 @@ def supplement_table_delay_bands(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:supp-delay-bands}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}L{{0.12\linewidth}}r r r r r r r@{{}}}}
 \toprule
-Delay band (min) & Episodes & Failed exit (\%) & Observed-path score & Feasible-rewire score & Mean gap & High-rewire (\%) & Structural-brittle (\%) \\
+Delay band (min) & Episodes & Failed exit (\%) & Observed-path score & Best-cont. score & Mean gap & High-cont. (\%) & Structural-brittle (\%) \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{Delay band is based on outbound departure delay at the focal episode. High-rewire denotes feasible-rewire recoverability of at least 0.70. Larger observed-path and feasible-rewire scores mean higher estimated four-turn recovery probability. Larger mean gap means greater feasible continuation availability beyond the observed path. Bold marks the highest failed-exit rate, mean gap, and structural-brittle share.}}
+    \tablenote{{Delay band is based on outbound departure delay at the focal episode. High-continuation denotes best-continuation recoverability of at least 0.70. Larger observed-path and best-continuation scores mean higher estimated four-turn recovery probability. Larger mean gap means greater feasible continuation availability beyond the observed path. Bold marks the highest failed-exit rate, mean gap, and structural-brittle share.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "supp_tab_delay_bands.tex", text)
@@ -532,7 +541,7 @@ def supplement_table_delay_causes(data: dict[str, pd.DataFrame]) -> None:
                 tex_num(row.mean_pred_recover, 3),
                 tex_num(row.mean_donor_pred_max, 3),
                 gap,
-                tex_pct(row.severe_high_rewire_share),
+                tex_pct(row.severe_high_continuation_share),
                 structural,
             ]
         )
@@ -546,12 +555,12 @@ def supplement_table_delay_causes(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:supp-delay-causes}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}L{{0.24\linewidth}}r r r r r r r@{{}}}}
 \toprule
-Dominant delay cause & Episodes & Failed exit (\%) & Observed-path score & Feasible-rewire score & Mean gap & Severe high-rewire (\%) & Structural-brittle (\%) \\
+Dominant delay cause & Episodes & Failed exit (\%) & Observed-path score & Best-cont. score & Mean gap & Severe high-cont. (\%) & Structural-brittle (\%) \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{Dominant delay cause follows the largest reported BTS delay component for the focal departure. National Air System denotes the BTS system-delay category. Higher severe high-rewire share indicates more severe-delay episodes with high feasible-rewire recoverability. Higher structural-brittle share indicates more episodes with limited improvement from compatible donors. Bold marks the highest failed-exit rate, mean gap, and structural-brittle share.}}
+    \tablenote{{Dominant delay cause follows the largest reported BTS delay component for the focal departure. National Air System denotes the BTS system-delay category. Higher severe high-continuation share indicates more severe-delay episodes with high best-continuation recoverability. Higher structural-brittle share indicates more episodes with limited improvement from compatible donors. Bold marks the highest failed-exit rate, mean gap, and structural-brittle share.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "supp_tab_delay_causes.tex", text)
@@ -629,17 +638,17 @@ def supplement_table_method_slices(data: dict[str, pd.DataFrame]) -> None:
     slices["slice_order"] = slices.slice.map(slice_order)
     slice_max_failure = slices.groupby("slice").failure_rate.transform("max")
     slice_max_gap = slices.groupby("slice").mean_ctrg_gap_max.transform("max")
-    slice_max_rewire = slices.groupby("slice").severe_high_rewire_share.transform("max")
+    slice_max_continuation = slices.groupby("slice").severe_high_continuation_share.transform("max")
     rows = []
     for _, row in slices.sort_values(["order", "slice_order"]).iterrows():
         failure = tex_pct(row.failure_rate)
         gap = tex_num(row.mean_ctrg_gap_max, 3)
-        severe = tex_pct(row.severe_high_rewire_share)
+        severe = tex_pct(row.severe_high_continuation_share)
         if row.failure_rate == slice_max_failure.loc[row.name]:
             failure = bold(failure)
         if row.mean_ctrg_gap_max == slice_max_gap.loc[row.name]:
             gap = bold(gap)
-        if row.severe_high_rewire_share == slice_max_rewire.loc[row.name]:
+        if row.severe_high_continuation_share == slice_max_continuation.loc[row.name]:
             severe = bold(severe)
         rows.append(
             [
@@ -664,12 +673,12 @@ def supplement_table_method_slices(data: dict[str, pd.DataFrame]) -> None:
 \label{{tab:supp-method-slices}}
 \begin{{tabularx}}{{\linewidth}}{{@{{}}L{{0.24\linewidth}}r r r r r r r r@{{}}}}
 \toprule
-Method family & Slice (\%) & Episodes & Failed exit (\%) & Lift & Start delay (min) & Mean CTRG gap & Feasible-rewire score & Severe high-rewire (\%) \\
+Method family & Slice (\%) & Episodes & Failed exit (\%) & Lift & Start delay (min) & Mean CTRG gap & Best-cont. score & Severe high-cont. (\%) \\
 \midrule
 {body}
 \bottomrule
 \end{{tabularx}}
-\tablenote{{Slice is the selected top share among supported stressed episodes in the focused diagnostic sample. Lift is the failed-exit rate divided by the reference failed-exit rate in that sample. Start delay is the mean outbound departure delay at the focal episode. Higher mean CTRG gap and feasible-rewire score indicate stronger recoverability-gap evidence. Bold marks the largest failed-exit rate, mean CTRG gap, and severe high-rewire share within each slice size.}}
+    \tablenote{{Slice is the selected top share among supported stressed episodes in the focused diagnostic sample. Lift is the failed-exit rate divided by the reference failed-exit rate in that sample. Start delay is the mean outbound departure delay at the focal episode. Higher mean CTRG gap and best-continuation score indicate stronger recoverability-gap evidence. Bold marks the largest failed-exit rate, mean CTRG gap, and severe high-continuation share within each slice size.}}
 \end{{table}}
 """
     write_text(TABLE_DIR / "supp_tab_method_slices.tex", text)
@@ -901,7 +910,7 @@ def figure_context_heterogeneity(data: dict[str, pd.DataFrame]) -> None:
     plt.close(fig)
 
 
-def figure_counterfactual_patterns(data: dict[str, pd.DataFrame]) -> None:
+def figure_continuation_patterns(data: dict[str, pd.DataFrame]) -> None:
     setup_plot_style()
     delay = data["delay"].copy()
     cause = data["cause"].copy()
@@ -911,7 +920,7 @@ def figure_counterfactual_patterns(data: dict[str, pd.DataFrame]) -> None:
     ax = axes[0]
     x = list(range(len(delay)))
     ax.plot(x, delay.mean_pred_recover, marker="o", color="#8E5A9F", linewidth=1.5, label="Observed-path")
-    ax.plot(x, delay.mean_donor_pred_max, marker="s", color="#3B6EA8", linewidth=1.5, label="Feasible rewire")
+    ax.plot(x, delay.mean_donor_pred_max, marker="s", color="#3B6EA8", linewidth=1.5, label="Best continuation")
     ax.bar(x, delay.mean_gap_max, color="#C27C3A", alpha=0.35, label="Gap")
     ax.set_xticks(x, delay_tick_labels)
     ax.set_ylim(0, 0.9)
@@ -923,7 +932,7 @@ def figure_counterfactual_patterns(data: dict[str, pd.DataFrame]) -> None:
 
     ax = axes[1]
     failure_vals = delay.failure_rate * 100
-    high_rewire_vals = delay.high_rewire_share * 100
+    high_continuation_vals = delay.high_continuation_share * 100
     bars = ax.bar(
         x,
         failure_vals,
@@ -936,13 +945,13 @@ def figure_counterfactual_patterns(data: dict[str, pd.DataFrame]) -> None:
     ax.set_xticks(x, delay_tick_labels)
     ax.set_ylabel("Failed-exit rate (%)")
     ax.set_xlabel("Departure-delay band (min)")
-    ax.set_title("(b) Failure and rewire")
+    ax.set_title("(b) Failure and continuation")
     ax.set_ylim(0, max(failure_vals) * 1.45)
     ax.grid(axis="y", color="#DDDDDD", linewidth=0.5)
     for bar, val in zip(bars, failure_vals):
         ax.text(bar.get_x() + bar.get_width() / 2, val + 0.5, f"{val:.1f}", ha="center", fontsize=6.2)
     ax2 = ax.twinx()
-    ax2.plot(x, high_rewire_vals, color="#3B6EA8", marker="s", linewidth=1.3, markersize=3.2, label="High rewire")
+    ax2.plot(x, high_continuation_vals, color="#3B6EA8", marker="s", linewidth=1.3, markersize=3.2, label="High continuation")
     ax2.set_ylabel("")
     ax2.set_ylim(0, 100)
     lines, line_labels = ax.get_legend_handles_labels()
@@ -985,7 +994,7 @@ def figure_counterfactual_patterns(data: dict[str, pd.DataFrame]) -> None:
         ncol=6,
         y=0.02,
     )
-    fig.savefig(FIG_DIR / "fig_counterfactual_patterns.pdf", bbox_inches="tight")
+    fig.savefig(FIG_DIR / "fig_continuation_patterns.pdf", bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1008,7 +1017,7 @@ def main() -> None:
     figure_sampling_contexts(data)
     figure_top_slice(data)
     figure_context_heterogeneity(data)
-    figure_counterfactual_patterns(data)
+    figure_continuation_patterns(data)
 
 
 if __name__ == "__main__":

@@ -43,7 +43,7 @@ def yearly_row(label: str, results_dir: Path) -> dict:
     counts = summary["counts"]
     model = summary["model"]
     support = summary["support"]
-    patterns = summary["counterfactual_patterns"]
+    patterns = summary["continuation_patterns"]
     ctrg_boot = boot.get("CTRG max-gap", {})
     delay_boot = boot.get("Delay-only", {})
     slack_boot = boot.get("Slack-only", {})
@@ -60,7 +60,7 @@ def yearly_row(label: str, results_dir: Path) -> dict:
         "recover_ap": model["recover_average_precision"],
         "reference_failed_exit": patterns["supported_stressed_failure_rate"],
         "mean_gap_max": patterns["mean_gap_max_supported"],
-        "severe_high_rewire_share": patterns["severe_high_rewire_share"],
+        "severe_high_continuation_share": patterns["severe_high_continuation_share"],
         "structural_brittle_share": patterns["structural_brittle_share"],
         "ctrg_top10_failure": top10["CTRG max-gap"]["failure_rate"],
         "ctrg_top10_ci_low": ctrg_boot.get("failure_rate_ci_low"),

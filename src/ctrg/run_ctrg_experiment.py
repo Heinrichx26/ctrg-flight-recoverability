@@ -489,7 +489,7 @@ def predict_tree(model_tuple, df: pd.DataFrame) -> np.ndarray:
 def split_train_eval(turn: pd.DataFrame, mode: str, horizon: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     eligible = turn[(turn[f"endpoint_obs_h{horizon}"] == 1) & (turn["out_dep_delay"].notna())].copy()
     eligible = eligible.sort_values("sched_dep_dt").reset_index(drop=True)
-    if mode == "smoke":
+    if mode == "check":
         cutoff = eligible["sched_dep_dt"].quantile(0.55)
         train = eligible[eligible["sched_dep_dt"] <= cutoff].copy()
         test = eligible[eligible["sched_dep_dt"] > cutoff].copy()
@@ -684,7 +684,7 @@ def monthly_table(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
                 "supported_share_stressed": float(len(supported) / len(stressed)),
                 "failure_rate_supported_stressed": float(supported[f"fail_h{horizon}"].mean()) if len(supported) else np.nan,
                 "mean_gap_max_supported": float(supported["ctrg_gap_max"].mean()) if len(supported) else np.nan,
-                "severe_high_rewire_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
+                "severe_high_continuation_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
                 "structural_brittle_share": float(supported["structural_brittle"].mean()) if len(supported) else np.nan,
             }
         )
@@ -708,7 +708,7 @@ def delay_band_table(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
                 "mean_pred_recover": float(g["pred_recover"].mean()),
                 "mean_donor_pred_max": float(g["donor_pred_max"].mean()),
                 "mean_gap_max": float(g["ctrg_gap_max"].mean()),
-                "high_rewire_share": float((g["donor_pred_max"] >= 0.70).mean()),
+                "high_continuation_share": float((g["donor_pred_max"] >= 0.70).mean()),
                 "structural_brittle_share": float(g["structural_brittle"].mean()),
             }
         )
@@ -739,7 +739,7 @@ def cause_table(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
                 "mean_pred_recover": float(g["pred_recover"].mean()),
                 "mean_donor_pred_max": float(g["donor_pred_max"].mean()),
                 "mean_gap_max": float(g["ctrg_gap_max"].mean()),
-                "severe_high_rewire_share": float(g["recoverable_despite_severe"].mean()),
+                "severe_high_continuation_share": float(g["recoverable_despite_severe"].mean()),
                 "structural_brittle_share": float(g["structural_brittle"].mean()),
             }
         )
@@ -799,7 +799,7 @@ def airport_table(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
                 "failure_rate_stressed": float(stressed[f"fail_h{horizon}"].mean()),
                 "failure_rate_supported_stressed": float(supported[f"fail_h{horizon}"].mean()) if len(supported) else np.nan,
                 "mean_gap_max_supported": float(supported["ctrg_gap_max"].mean()) if len(supported) else np.nan,
-                "severe_high_rewire_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
+                "severe_high_continuation_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
                 "structural_brittle_share": float(supported["structural_brittle"].mean()) if len(supported) else np.nan,
             }
         )
@@ -839,11 +839,11 @@ def summarize_experiment(
             "median_donor_count_supported": float(supported["donor_count"].median()) if len(supported) else np.nan,
             "median_donor_time_gap_minutes": float(supported["donor_median_time_gap"].median()) if len(supported) else np.nan,
         },
-        "counterfactual_patterns": {
+        "continuation_patterns": {
             "supported_stressed_failure_rate": float(supported[f"fail_h{horizon}"].mean()) if len(supported) else np.nan,
             "supported_stressed_recovery_rate": float(supported[f"recover_h{horizon}"].mean()) if len(supported) else np.nan,
             "mean_gap_max_supported": float(supported["ctrg_gap_max"].mean()) if len(supported) else np.nan,
-            "severe_high_rewire_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
+            "severe_high_continuation_share": float(supported["recoverable_despite_severe"].mean()) if len(supported) else np.nan,
             "structural_brittle_share": float(supported["structural_brittle"].mean()) if len(supported) else np.nan,
             "severe_mean_donor_pred_max": float(severe["donor_pred_max"].mean()) if len(severe) else np.nan,
             "moderate_mean_donor_pred_max": float(moderate["donor_pred_max"].mean()) if len(moderate) else np.nan,
@@ -919,7 +919,7 @@ def run(config: ExperimentConfig, root: Path) -> None:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["smoke", "full"], default="smoke")
+    parser.add_argument("--mode", choices=["check", "full"], default="check")
     parser.add_argument("--years", nargs="+", type=int, default=[2024])
     parser.add_argument("--months", nargs="+", type=int, default=[1])
     parser.add_argument("--airports", nargs="+", default=["ATL", "DFW", "DEN", "ORD", "LAX"])
